@@ -10,12 +10,19 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import Adafruit_DHT as ada
 import sys
 import time
+import datetime as dt
+import csv
+import matplotlib.pyplot as pt
+import numpy as np
 
 class Ui_Dialog(QtWidgets.QWidget):
-    count = 0
+    sample_count = 1
+    total_temp =0
+    total_hum = 0
+    avg_temp = 0
+    avg_hum = 0
     error_sig = QtCore.pyqtSignal()
     humidity,temp=(0,0)
-
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -82,11 +89,16 @@ class Ui_Dialog(QtWidgets.QWidget):
         self.Date_line.setGeometry(QtCore.QRect(322, 404, 161, 31))
         self.Date_line.setReadOnly(True)
         self.Date_line.setObjectName("Date_line")
+        self.Plot = QtWidgets.QPushButton(Dialog)
+        self.Plot.setGeometry(QtCore.QRect(10, 400, 112, 34))
+        self.Plot.setObjectName("Temp")
+ 
         self.timer.start(1000)
 
         self.retranslateUi(Dialog)
         self.Temp.clicked.connect(self.temp_query)
         self.Humidity.clicked.connect(self.hum_query)
+        self.Plot.clicked.connect(self.plot)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):
@@ -99,29 +111,82 @@ class Ui_Dialog(QtWidgets.QWidget):
         self.Avg_Temp.setText(self._translate("Dialog", "Average Temp:"))
         self.Avg_Hum.setText(self._translate("Dialog", "Average Humidity:"))
         self.colon_label.setText(self._translate("Dialog", ":"))
+        self.Plot.setText(self._translate("Dialog","Plot"))
     
     
     def temp_query(self):
         self.humidity,self.temp = ada.read_retry(22,4)
+        total_temp = total_temp + self.temp
+        total_hum = total_hum + self.humidity
+        avg_temp = total_temp / sample_count
+        avg_hum = total_hum / sample_count
         if(self.humidity == None):
-            self.error_sig.emit()
-            return
+            self.Temp_LE.setText(self._translate("Dialog","Error:Sensor not connected"))
         temp_string = '{0:.2f}'.format(self.temp)
+        hum_string = '{0:2f}'.format(self.humidity)
         self.Temp_LE.setText(self._translate("Dialog",temp_string))
-        self.humidity ,self.temp = (0,0)
+        with open('ambient_data.csv','a')as csvfile:
+            filewriter = csv.writer(csvfile, delimiter =',', quotechar = '|', quoting = csv.QUOTE_MINIMAL)
+            filewriter.writerow([hum_string,temp_string])
 
     def hum_query(self):
         self.humidity,self.temp = ada.read_retry(22,4)
+        total_temp = total_temp + self.temp
+        total_hum = total_hum + self.humidity
+        avg_temp = total_temp / sample_count
+        avg_hum = total_hum / sample_count
+        if(self.humidity == None):
+            self.Hum_LE.setText(self._translate("Dialog","Error:Sensor not connected"))
+        temp_string = '{0:.2f}'.format(self.temp)
         hum_string = '{0:.2f}'.format(self.humidity)
         self.Hum_LE.setText(self._translate("Dialog",hum_string))
-        self.humidity ,self.temp = (0,0)
+        with open('ambient_data.csv','a')as csvfile:
+            filewriter = csv.writer(csvfile, delimiter =',', quotechar = '|', quoting = csv.QUOTE_MINIMAL)
+            filewriter.writerow([hum_string,temp_string])
+
 
     def timer_handle(self):
-        print("tick")
-        self.count = self.count + 1
+        now = dt.datetime.now()
+        self.Hour_disp.display(now.hour)
+        self.Min_lcd.display(now.minute)
+        #self.humidity,self.temp = ada.read_retry(22,44)
 
     def pop_up(self):
-        print("error")
+        error_box = error_Dialog()
+        error_box.setModal(true)
+        self.error_box.show()
+        sys.exit(self.error_box.exec_())
+
+class error_Dialog(object):
+    def __init__(self):
+        self.setupUi(self)
+
+    def setupUi(self, Dialog):
+        Dialog.setObjectName("Dialog")
+        Dialog.resize(439, 134)
+        Dialog.setModal(True)
+        self.label = QtWidgets.QLabel(Dialog)
+        self.label.setGeometry(QtCore.QRect(30, 20, 361, 41))
+        font = QtGui.QFont()
+        font.setPointSize(18)
+        self.label.setFont(font)
+        self.label.setScaledContents(False)
+        self.label.setObjectName("label")
+        self.Ok_Button = QtWidgets.QPushButton(Dialog)
+        self.Ok_Button.setGeometry(QtCore.QRect(160, 90, 112, 34))
+        self.Ok_Button.setObjectName("Ok_Button")
+
+        self.retranslateUi(Dialog)
+        QtCore.QMetaObject.connectSlotsByName(Dialog)
+        #self.Ok_Button.clicked.connect(Dialog.Close())
+    def retranslateUi(self, Dialog):
+        _translate = QtCore.QCoreApplication.translate
+        Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+        self.label.setText(_translate("Dialog", "Sensor not Connected"))
+        self.Ok_Button.setText(_translate("Dialog", "OK"))
+
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     ex = Ui_Dialog()
