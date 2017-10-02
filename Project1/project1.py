@@ -93,7 +93,7 @@ class Ui_Dialog(QtWidgets.QWidget):
         self.Plot.setGeometry(QtCore.QRect(10, 400, 112, 34))
         self.Plot.setObjectName("Temp")
  
-        self.timer.start(1000)
+        self.timer.start(30000)
 
         self.retranslateUi(Dialog)
         self.Temp.clicked.connect(self.temp_query)
@@ -112,16 +112,27 @@ class Ui_Dialog(QtWidgets.QWidget):
         self.Avg_Hum.setText(self._translate("Dialog", "Average Humidity:"))
         self.colon_label.setText(self._translate("Dialog", ":"))
         self.Plot.setText(self._translate("Dialog","Plot"))
+        now = dt.datetime.now()
+        self.Hour_disp.display(now.hour)
+        self.Min_lcd.display(now.minute)
+        date_string = str(now.month) + ":" + str(now.day) + ":" + str(now.year)
+        self.Date_line.setText(self._translate("Dialog",date_string))
     
     
     def temp_query(self):
         self.humidity,self.temp = ada.read_retry(22,4)
-        total_temp = total_temp + self.temp
-        total_hum = total_hum + self.humidity
-        avg_temp = total_temp / sample_count
-        avg_hum = total_hum / sample_count
         if(self.humidity == None):
             self.Temp_LE.setText(self._translate("Dialog","Error:Sensor not connected"))
+            return
+        self.total_temp = self.total_temp + self.temp
+        self.total_hum = self.total_hum + self.humidity
+        self.avg_temp = self.total_temp / self.sample_count
+        self.avg_hum = self.total_hum / self.sample_count
+        self.sample_count = self.sample_count + 1
+        avg_temp_string = '{0:.2f}'.format(self.avg_temp)
+        avg_hum_string = '{0:.2f}'.format(self.avg_hum)
+        self.Avg_Temp_LE.setText(self._translate("Dialog", avg_temp_string)) 
+        self.Avg_Hum_LE.setText(self._translate("Dialog", avg_hum_string))
         temp_string = '{0:.2f}'.format(self.temp)
         hum_string = '{0:2f}'.format(self.humidity)
         self.Temp_LE.setText(self._translate("Dialog",temp_string))
@@ -131,12 +142,18 @@ class Ui_Dialog(QtWidgets.QWidget):
 
     def hum_query(self):
         self.humidity,self.temp = ada.read_retry(22,4)
-        total_temp = total_temp + self.temp
-        total_hum = total_hum + self.humidity
-        avg_temp = total_temp / sample_count
-        avg_hum = total_hum / sample_count
         if(self.humidity == None):
             self.Hum_LE.setText(self._translate("Dialog","Error:Sensor not connected"))
+            return
+        self.total_hum = self.total_hum + self.humidity
+        self.total_temp = self.total_temp + self.temp
+        self.avg_temp = self.total_temp / self.sample_count 
+        self.avg_hum = self.total_hum / self.sample_count
+        self.sample_count = self.sample_count + 1
+        avg_temp_string = '{0:.2f}'.format(self.avg_temp)
+        avg_hum_string = '{0:.2f}'.format(self.avg_hum)
+        self.Avg_Temp_LE.setText(self._translate("Dialog", avg_temp_string)) 
+        self.Avg_Hum_LE.setText(self._translate("Dialog", avg_hum_string))
         temp_string = '{0:.2f}'.format(self.temp)
         hum_string = '{0:.2f}'.format(self.humidity)
         self.Hum_LE.setText(self._translate("Dialog",hum_string))
@@ -149,13 +166,34 @@ class Ui_Dialog(QtWidgets.QWidget):
         now = dt.datetime.now()
         self.Hour_disp.display(now.hour)
         self.Min_lcd.display(now.minute)
-        #self.humidity,self.temp = ada.read_retry(22,44)
+        date_string = str(now.month) + ":" + str(now.day) + ":" + str(now.year)
+        self.Date_line.setText(self._translate("Dialog",date_string))
+        self.humidity,self.temp = ada.read_retry(22,4)
+    
+        self.total_hum = self.total_hum + self.humidity
+        self.total_temp = self.total_temp + self.temp
+        self.avg_temp = self.total_temp / self.sample_count 
+        self.avg_hum = self.total_hum / self.sample_count
+        self.sample_count = self.sample_count + 1
+        avg_temp_string = '{0:.2f}'.format(self.avg_temp)
+        avg_hum_string = '{0:.2f}'.format(self.avg_hum)
+        self.Avg_Temp_LE.setText(self._translate("Dialog", avg_temp_string)) 
+        self.Avg_Hum_LE.setText(self._translate("Dialog", avg_hum_string))
+        temp_string = '{0:.2f}'.format(self.temp)
 
     def pop_up(self):
         error_box = error_Dialog()
         error_box.setModal(true)
         self.error_box.show()
         sys.exit(self.error_box.exec_())
+
+    def plot(self):
+        humidity,temp = np.loadtxt('ambient_data.csv', delimiter=',', unpack=True)
+        i = range(0,len(humidity))
+        fig = pt.figure()
+        pt.plot(i,humidity,label='Humidity')
+        pt.show()
+        fig.savefig('ambient_data.jpg')
 
 class error_Dialog(object):
     def __init__(self):
